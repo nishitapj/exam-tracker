@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Workflow: V Semester</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Exam Workflow 2026</h1>
+            <div class="stats-grid">
+                <div class="stat-card" style="border-top: 4px solid #4CAF50;">
+                    <h3>ML (28 Jan)</h3>
+                    <p>Target: 34/60</p>
+                </div>
+                <div class="stat-card" style="border-top: 4px solid #2196F3;">
+                    <h3>SE (30 Jan)</h3>
+                    <p>Target: 78/100</p>
+                </div>
+                <div class="stat-card danger" style="border-top: 4px solid #f44336;">
+                    <h3>CN (02 Feb)</h3>
+                    <p>Target: 88/100</p>
+                </div>
+                <div class="stat-card" style="border-top: 4px solid #FF9800;">
+                    <h3>CC (05 Feb)</h3>
+                    <p>Target: 48/60</p>
+                </div>
+                <div class="stat-card" style="border-top: 4px solid #9C27B0;">
+                    <h3>CV (06 Feb)</h3>
+                    <p>Target: 74/100</p>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <p>Overall Readiness: <span id="progress-text">0%</span></p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+        </header>
+
+        <main id="task-list">
+            <div class="loading">Loading your battle plan...</div>
+        </main>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>

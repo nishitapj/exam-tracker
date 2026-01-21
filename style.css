@@ -1,0 +1,110 @@
+:root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --subtext: #94a3b8;
+    --accent: #3b82f6;
+    --danger: #ef4444;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 { text-align: center; margin-bottom: 30px; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: var(--card);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h3 { margin: 0 0 5px 0; font-size: 1rem; }
+.stat-card p { margin: 0; color: var(--subtext); font-size: 0.9rem; }
+.stat-card.danger h3 { color: var(--danger); }
+
+.progress-container {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.progress-bar {
+    height: 10px;
+    background: #334155;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+.task-group {
+    margin-bottom: 25px;
+}
+
+.date-header {
+    color: var(--accent);
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 5px;
+}
+
+.task-item {
+    background: var(--card);
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s;
+}
+
+.task-item:hover { transform: translateY(-2px); }
+
+.task-content { flex-grow: 1; }
+.task-title { font-weight: 600; display: block; }
+.task-desc { font-size: 0.85rem; color: var(--subtext); }
+.task-badge { 
+    font-size: 0.75rem; 
+    padding: 2px 8px; 
+    border-radius: 4px; 
+    margin-left: 10px; 
+    background: #334155;
+}
+
+input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.completed .task-title { text-decoration: line-through; color: var(--subtext); }
