@@ -13,34 +13,36 @@ const firebaseConfig = {
   measurementId: "G-NGL34V940J"
 };
 
-// --- INITIALIZE FIREBASE ---
+// --- INIT FIREBASE ---
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const USER_ID = "my_exam_tracker"; // This ID stores all your progress
+const USER_ID = "my_exam_tracker"; 
 
-// --- ROUTER & LOGIC ---
+// --- ROUTER ---
 const path = window.location.pathname;
-// Check if we are on the dashboard (index.html or root /)
-const isDashboard = path.endsWith("index.html") || path.endsWith("/") || path === ""; 
 const urlParams = new URLSearchParams(window.location.search);
 const currentSubject = urlParams.get("sub");
 
-// --- MAIN INIT FUNCTION ---
+// --- MAIN INIT ---
 async function init() {
     console.log("App Initializing...");
     
-    // 1. Sync Static Data to Firebase (First run only)
+    // 1. Sync Static Data (First run only)
     try {
         await syncSchema();
     } catch (error) {
         console.error("Database Error:", error);
-        alert("Error connecting to database. Did you set Firestore Rules to 'Test Mode'?");
     }
 
-    // 2. Decide which page to render
-    if (currentSubject) {
+    // 2. Route Handling
+    if (path.endsWith("revision.html")) {
+        renderRevision();
+    } 
+    else if (currentSubject) {
         renderSubjectPage(currentSubject);
-    } else {
+    } 
+    else {
+        // Default to dashboard
         renderDashboard();
     }
 }
@@ -53,99 +55,113 @@ async function syncSchema() {
     if (!snap.exists()) {
         console.log("Creating fresh database schema...");
         let schema = {};
-        // Convert your data.js structure into a flat checklist for the DB
         for (const [subKey, subData] of Object.entries(fullSyllabus)) {
             subData.topics.forEach(topic => {
-                schema[topic.id] = false; // Default: Not Done
+                schema[topic.id] = false; 
             });
         }
         await setDoc(docRef, schema);
-        location.reload(); // Reload to show the fresh data
+        location.reload(); 
     }
 }
 
-// --- DASHBOARD RENDERER (index.html) ---
+// --- DASHBOARD RENDERER ---
 async function renderDashboard() {
     console.log("Rendering Dashboard...");
     const docRef = doc(db, "trackers", USER_ID);
     const snap = await getDoc(docRef);
     const progressMap = snap.exists() ? snap.data() : {};
-
+    
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to midnight for accurate day calc
+    today.setHours(0, 0, 0, 0);
 
-    // --- 1. DYNAMIC SUBJECT GRID (Calculates Time for ALL 5) ---
+    // 1. Inject Revision Link
+    const header = document.querySelector(".dashboard-header");
+    if(header && !document.getElementById('rev-link')) {
+        const link = document.createElement("a");
+        link.id = 'rev-link';
+        link.href = "revision.html";
+        link.className = "daily-task"; 
+        link.style.marginTop = "20px";
+        link.style.background = "#1e293b";
+        link.style.borderLeft = "4px solid #eab308";
+        link.innerHTML = "<strong>⚡ Last Minute Revision / Cheat Sheets</strong><span style='font-size:1.2rem'>&rarr;</span>";
+        header.appendChild(link);
+    }
+
+    // 2. Build Subject Grid
     const grid = document.querySelector('.subject-grid');
     if (grid) {
-        grid.innerHTML = ""; // Clear any static HTML to prevent duplicates
+        grid.innerHTML = ""; // Clear existing
         
-        let nearestObj = { name: "", days: 999 };
+        let nearestObj = { name: "", days: 999, title: "" };
 
         for (const [subKey, subData] of Object.entries(fullSyllabus)) {
-            // A. Calculate Days Left
+            // Days Left
             const examDate = new Date(subData.examDate);
             const diffTime = examDate - today;
             const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            // B. Calculate Progress
+            // Progress
             const total = subData.topics.length;
             const done = subData.topics.filter(t => progressMap[t.id]).length;
             const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
-            // C. Track Nearest Exam for the Main Banner
+            // Track Nearest
             if (daysLeft >= 0 && daysLeft < nearestObj.days) {
                 nearestObj = { name: subKey, days: daysLeft, title: subData.title };
             }
 
-            // D. Create Card HTML
+            // Colors
+            let badgeColor = "#334155"; 
+            let badgeText = `${daysLeft} Days Left`;
+            if (daysLeft === 0) { badgeColor = "#ef4444"; badgeText = "TODAY!"; }
+            else if (daysLeft === 1) { badgeColor = "#eab308"; badgeText = "TOMORROW!"; }
+            else if (daysLeft < 0) { badgeText = "COMPLETED"; badgeColor = "#22c55e"; }
+
             const card = document.createElement("a");
             card.href = `subject.html?sub=${subKey}`;
             card.className = "subject-card";
-            
-            // Color code urgency
-            let timeColor = "#94a3b8"; // Gray (Standard)
-            if (daysLeft <= 3) timeColor = "#ef4444"; // Red (Panic)
-            else if (daysLeft <= 7) timeColor = "#eab308"; // Yellow (Warning)
-
             card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:start;">
-                    <span class="subject-code">${subKey}</span>
-                    <span style="font-size:0.8rem; background:#334155; padding:2px 6px; border-radius:4px;">${subData.target}</span>
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="subject-code">${subKey}</span>
+                        <span style="font-size:0.75rem; opacity:0.8">${subData.target}</span>
+                    </div>
+                    <div class="exam-meta">
+                        <div>📅 ${subData.examDate}</div>
+                        <div class="exam-time-row"><span>⏰ ${subData.examTime}</span></div>
+                    </div>
                 </div>
-                
-                <div style="margin: 15px 0; font-size: 0.9rem; color:${timeColor}; font-weight:bold;">
-                    ⏳ ${daysLeft > 0 ? daysLeft + " Days Left" : "EXAM TODAY!"}
-                </div>
-
-                <div class="mini-progress">
-                    <div class="mini-fill" style="width:${percent}%; background-color: ${percent === 100 ? '#22c55e' : ''}"></div>
+                <div>
+                    <div class="countdown-badge" style="background:${badgeColor}">${badgeText}</div>
+                    <div class="mini-progress">
+                        <div class="mini-fill" style="width:${percent}%; background-color: ${percent === 100 ? '#22c55e' : ''}"></div>
+                    </div>
                 </div>
             `;
             grid.appendChild(card);
         }
 
-        // --- 2. MAIN COUNTDOWN BANNER ---
+        // 3. Update Main Banner
         const countdownEl = document.getElementById("countdown");
-        if (countdownEl) {
-            if (nearestObj.days === 0) {
-                countdownEl.innerText = `🚨 EXAM DAY: ${nearestObj.title} IS TODAY! 🚨`;
-                countdownEl.style.background = "#ef4444"; // Red background
-            } else {
-                countdownEl.innerText = `🔥 Next Battle: ${nearestObj.name} in ${nearestObj.days} Days`;
-            }
+        if (countdownEl && nearestObj.title) {
+            countdownEl.innerText = nearestObj.days === 0 
+                ? `🚨 EXAM DAY: ${nearestObj.title}!` 
+                : `🔥 Next Up: ${nearestObj.name} in ${nearestObj.days} Days`;
+            if(nearestObj.days === 0) countdownEl.style.background = "#ef4444";
         }
     }
 
-    // --- 3. TODAY'S TASKS (Unchanged logic) ---
-    const todayStr = new Date().toISOString().split('T')[0]; 
+    // 4. Render Today's Tasks
     const container = document.getElementById("today-tasks");
     if(container) {
         container.innerHTML = "";
+        const todayStr = new Date().toISOString().split('T')[0];
         let hasTasks = false;
 
         for (const [subKey, subData] of Object.entries(fullSyllabus)) {
             subData.topics.forEach(topic => {
-                // Show task if: It's due today/past due AND it's not checked off
                 if ((topic.date <= todayStr) && !progressMap[topic.id]) {
                     hasTasks = true;
                     const div = document.createElement("div");
@@ -161,36 +177,30 @@ async function renderDashboard() {
                 }
             });
         }
-
         if (!hasTasks) {
-            container.innerHTML = `<div class="daily-task" style="border-left-color:var(--success)">🎉 No pending tasks for today!</div>`;
+            container.innerHTML = `<div class="daily-task" style="border-left-color:var(--success)">🎉 No pending tasks! Check Revision.</div>`;
         }
     }
 }
 
-// --- SUBJECT PAGE RENDERER (subject.html) ---
+// --- SUBJECT PAGE RENDERER ---
 async function renderSubjectPage(subKey) {
     const data = fullSyllabus[subKey];
     if (!data) return; 
 
-    // Set Header Info
     const titleEl = document.getElementById("subject-title");
     if(titleEl) titleEl.innerText = data.title;
     
     const dateEl = document.getElementById("exam-date");
-    if(dateEl) dateEl.innerText = `Exam Date: ${data.examDate} | Target: ${data.target}`;
+    if(dateEl) dateEl.innerText = `Exam: ${data.examDate} | ${data.examTime}`;
 
-    // Fetch Progress
     const docRef = doc(db, "trackers", USER_ID);
     const snap = await getDoc(docRef);
     const progressMap = snap.exists() ? snap.data() : {};
 
-    // Render Topics grouped by Unit
     const container = document.getElementById("topics-container");
     if(container) {
-        container.innerHTML = ""; // Clear loading text
-        
-        // Group topics by Unit
+        container.innerHTML = ""; 
         const grouped = {};
         data.topics.forEach(t => {
             if(!grouped[t.unit]) grouped[t.unit] = [];
@@ -201,7 +211,6 @@ async function renderSubjectPage(subKey) {
             const groupDiv = document.createElement("div");
             groupDiv.className = "unit-group";
             groupDiv.innerHTML = `<div class="unit-title">${unit}</div>`;
-
             topics.forEach(topic => {
                 const isDone = progressMap[topic.id];
                 const item = document.createElement("div");
@@ -212,30 +221,46 @@ async function renderSubjectPage(subKey) {
                         <input type="checkbox" id="${topic.id}" ${isDone ? 'checked' : ''}>
                     </div>
                 `;
-                
-                // Add Click Listener
                 const box = item.querySelector("input");
                 box.addEventListener("change", (e) => toggleTopic(topic.id, e.target.checked));
-                
                 groupDiv.appendChild(item);
             });
             container.appendChild(groupDiv);
         }
     }
-
     updateBattery(data.topics, progressMap);
 }
 
-// --- USER ACTIONS ---
+// --- REVISION PAGE RENDERER ---
+function renderRevision() {
+    const container = document.getElementById("revision-grid");
+    if (!container) return;
+
+    for (const [subKey, subData] of Object.entries(fullSyllabus)) {
+        const card = document.createElement("div");
+        card.className = "rev-card";
+        let listHTML = "";
+        subData.revision.forEach(item => {
+            listHTML += `<div class="rev-item">• ${item}</div>`;
+        });
+
+        card.innerHTML = `
+            <div class="rev-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                <strong>${subKey} Cheat Sheet</strong>
+                <span>▼</span>
+            </div>
+            <div class="rev-content">${listHTML}</div>
+        `;
+        container.appendChild(card);
+    }
+}
+
+// --- ACTIONS ---
 async function toggleTopic(topicId, isChecked) {
     const docRef = doc(db, "trackers", USER_ID);
+    await updateDoc(docRef, { [topicId]: isChecked });
     
-    // Update Firebase
-    await updateDoc(docRef, {
-        [topicId]: isChecked
-    });
-    
-    // UI Update (Optimistic - instant feedback)
+    // UI Update
     const checkbox = document.getElementById(topicId);
     if(checkbox) {
         const label = checkbox.parentElement.previousElementSibling;
@@ -243,7 +268,7 @@ async function toggleTopic(topicId, isChecked) {
         else label.classList.remove("strikethrough");
     }
 
-    // Recalculate Battery
+    // Refresh Battery
     const snap = await getDoc(docRef);
     const progressMap = snap.data();
     const subData = fullSyllabus[currentSubject];
@@ -261,13 +286,10 @@ function updateBattery(topics, progressMap) {
     if(fill && text) {
         fill.style.width = `${percent}%`;
         text.innerText = `${percent}% Charged`;
-
-        // Battery Colors
-        if(percent < 30) fill.style.background = "#ef4444"; // Red
-        else if(percent < 70) fill.style.background = "#eab308"; // Yellow
-        else fill.style.background = "#22c55e"; // Green
+        if(percent < 30) fill.style.background = "#ef4444"; 
+        else if(percent < 70) fill.style.background = "#eab308"; 
+        else fill.style.background = "#22c55e"; 
     }
 }
 
-// Start the app
 init();
