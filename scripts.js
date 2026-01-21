@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { fullSyllabus } from "./data.js";
 
-// --- CONFIGURATION (REPLACE WITH YOUR KEYS) ---
+// --- YOUR CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCYyXAEMh2dTI_JvNzxqlLUMVBbWnIO7ho",
   authDomain: "exam-tracker-23c1c.firebaseapp.com",
@@ -15,140 +16,213 @@ const firebaseConfig = {
 // --- INITIALIZE FIREBASE ---
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const TASKS_COLLECTION = "exam_tasks";
+const USER_ID = "my_exam_tracker"; // This ID stores all your progress
 
-// --- YOUR CUSTOM WORKFLOW DATA ---
-const initialWorkflow = [
-    // TODAY
-    { id: "1", date: "Jan 21 (Today - 5PM)", subject: "ML", title: "Unit 2: Neural Networks", desc: "Derive Backpropagation. Memorize CNN layers (AlexNet).", done: false },
-    { id: "2", date: "Jan 21 (Today - Night)", subject: "ML", title: "Unit 1: Regression Math", desc: "Formulas for MSE, Lasso (L1) vs Ridge (L2).", done: false },
-    
-    // TOMORROW
-    { id: "3", date: "Jan 22 (Thu)", subject: "ML", title: "Unit 3: Ensembles", desc: "Bagging vs Boosting. Random Forest concepts.", done: false },
-    { id: "4", date: "Jan 22 (Thu)", subject: "CN", title: "Unit 1: Queuing Theory", desc: "Study M/M/1 Formulas. Solve 2 problems.", done: false, priority: "High" },
-    
-    // FRIDAY (The "Danger" Day)
-    { id: "5", date: "Jan 23 (Fri)", subject: "CN", title: "Unit 2: Math & Protocols", desc: "Practice CRC Division. Memorize CSMA/CD Flowchart.", done: false },
-    { id: "6", date: "Jan 23 (Fri)", subject: "ML", title: "Unit 1: SVM & Kernels", desc: "Geometric interpretation of Support Vectors.", done: false },
-    
-    // WEEKEND (Focus on ML Exam)
-    { id: "7", date: "Jan 24 (Sat)", subject: "ML", title: "Full Syllabus Revision", desc: "Solve 1 previous year paper.", done: false },
-    { id: "8", date: "Jan 25 (Sun)", subject: "ML", title: "Cheat Sheet Creation", desc: "Write down all formulas on 1 sheet.", done: false },
-    
-    // EXAM WEEK
-    { id: "9", date: "Jan 28 (Wed - PM)", subject: "SE", title: "Unit 1: Agile", desc: "Agile Manifesto, Scrum vs XP. (Post ML Exam)", done: false },
-    { id: "10", date: "Jan 29 (Thu)", subject: "SE", title: "Unit 3: DevOps", desc: "Jenkins Architecture diagram. CI vs CD.", done: false },
-    { id: "11", date: "Jan 30 (Fri - PM)", subject: "CN", title: "Unit 3: Wireless", desc: "Mobile IP, Bluetooth. (Post SE Exam)", done: false },
-    { id: "12", date: "Feb 1 (Sun)", subject: "CN", title: "Unit 1: Routing", desc: "OSPF Headers, Dijkstra Algo steps.", done: false },
-    
-    // GAP DAYS
-    { id: "13", date: "Feb 3 (Tue)", subject: "CC", title: "Unit 1: K8s & Docker", desc: "K8s Architecture, Dockerfile commands.", done: false },
-    { id: "14", date: "Feb 4 (Wed)", subject: "CC", title: "Unit 2: Microservices", desc: "Service Mesh, Serverless (Lambda).", done: false },
-    { id: "15", date: "Feb 5 (Thu - PM)", subject: "CV", title: "Unit 1: Filters", desc: "Gaussian Kernel math, Canny Edge steps.", done: false }
-];
+// --- ROUTER & LOGIC ---
+const path = window.location.pathname;
+// Check if we are on the dashboard (index.html or root /)
+const isDashboard = path.endsWith("index.html") || path.endsWith("/") || path === ""; 
+const urlParams = new URLSearchParams(window.location.search);
+const currentSubject = urlParams.get("sub");
 
-// --- APP LOGIC ---
-
-async function initApp() {
-    const listEl = document.getElementById('task-list');
+// --- MAIN INIT FUNCTION ---
+async function init() {
+    console.log("App Initializing...");
     
-    // 1. Check if tasks exist, if not, seed them
-    const snapshot = await getDocs(collection(db, TASKS_COLLECTION));
-    if (snapshot.empty) {
-        console.log("Seeding database...");
-        const batch = writeBatch(db);
-        initialWorkflow.forEach(task => {
-            const docRef = doc(db, TASKS_COLLECTION, task.id);
-            batch.set(docRef, task);
-        });
-        await batch.commit();
-        location.reload(); // Reload to fetch newly seeded data
-        return;
+    // 1. Sync Static Data to Firebase (First run only)
+    try {
+        await syncSchema();
+    } catch (error) {
+        console.error("Database Error:", error);
+        alert("Error connecting to database. Did you set Firestore Rules to 'Test Mode'?");
     }
 
-    // 2. Render Tasks
-    const tasks = [];
-    snapshot.forEach(doc => tasks.push(doc.data()));
-    
-    // Sort by ID (simple chronological sort since IDs are 1, 2, 3...)
-    tasks.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-
-    renderTasks(tasks);
-    updateProgress(tasks);
+    // 2. Decide which page to render
+    if (currentSubject) {
+        renderSubjectPage(currentSubject);
+    } else {
+        renderDashboard();
+    }
 }
 
-function renderTasks(tasks) {
-    const container = document.getElementById('task-list');
-    container.innerHTML = '';
-    
-    let currentDate = '';
-    
-    tasks.forEach(task => {
-        // Create date header if new date
-        if (task.date !== currentDate) {
-            const dateHeader = document.createElement('div');
-            dateHeader.className = 'date-header';
-            dateHeader.textContent = task.date;
-            container.appendChild(dateHeader);
-            currentDate = task.date;
+// --- DATABASE SYNC ---
+async function syncSchema() {
+    const docRef = doc(db, "trackers", USER_ID);
+    const snap = await getDoc(docRef);
+
+    if (!snap.exists()) {
+        console.log("Creating fresh database schema...");
+        let schema = {};
+        // Convert your data.js structure into a flat checklist for the DB
+        for (const [subKey, subData] of Object.entries(fullSyllabus)) {
+            subData.topics.forEach(topic => {
+                schema[topic.id] = false; // Default: Not Done
+            });
+        }
+        await setDoc(docRef, schema);
+        location.reload(); // Reload to show the fresh data
+    }
+}
+
+// --- DASHBOARD RENDERER (index.html) ---
+async function renderDashboard() {
+    const docRef = doc(db, "trackers", USER_ID);
+    const snap = await getDoc(docRef);
+    const progressMap = snap.exists() ? snap.data() : {};
+
+    // 1. Update Mini Progress Bars
+    for (const [subKey, subData] of Object.entries(fullSyllabus)) {
+        const total = subData.topics.length;
+        const done = subData.topics.filter(t => progressMap[t.id]).length;
+        const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+        
+        const bar = document.getElementById(`prog-${subKey}`);
+        // We use optional chaining (?.) in case the element isn't found
+        if(bar) bar.style.width = `${percent}%`;
+    }
+
+    // 2. Render Today's Tasks
+    const todayStr = new Date().toISOString().split('T')[0]; 
+    const container = document.getElementById("today-tasks");
+    if(container) {
+        container.innerHTML = "";
+        let hasTasks = false;
+
+        for (const [subKey, subData] of Object.entries(fullSyllabus)) {
+            subData.topics.forEach(topic => {
+                // Show task if: It's due today/past due AND it's not checked off
+                if ((topic.date <= todayStr) && !progressMap[topic.id]) {
+                    hasTasks = true;
+                    const div = document.createElement("div");
+                    div.className = "daily-task";
+                    div.innerHTML = `
+                        <div>
+                            <strong>[${subKey}]</strong> ${topic.title}
+                            <div style="font-size:0.8rem; opacity:0.7">${topic.unit}</div>
+                        </div>
+                        <a href="subject.html?sub=${subKey}" style="color:var(--accent); font-weight:bold;">GO &rarr;</a>
+                    `;
+                    container.appendChild(div);
+                }
+            });
         }
 
-        const item = document.createElement('div');
-        item.className = `task-item ${task.done ? 'completed' : ''}`;
-        item.innerHTML = `
-            <div class="task-content">
-                <span class="task-title">
-                    ${task.title} 
-                    <span class="task-badge" style="background:${getSubjectColor(task.subject)}">${task.subject}</span>
-                </span>
-                <span class="task-desc">${task.desc}</span>
-            </div>
-            <input type="checkbox" ${task.done ? 'checked' : ''} data-id="${task.id}">
-        `;
+        if (!hasTasks) {
+            container.innerHTML = `<div class="daily-task" style="border-left-color:var(--success)">🎉 All caught up for today!</div>`;
+        }
+    }
+
+    // 3. Countdown to First Exam (ML)
+    const countdownEl = document.getElementById("countdown");
+    if(countdownEl) {
+        const mlDate = new Date("2026-01-28");
+        const today = new Date();
+        const diffTime = mlDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        countdownEl.innerText = `${diffDays} Days to ML Exam`;
+    }
+}
+
+// --- SUBJECT PAGE RENDERER (subject.html) ---
+async function renderSubjectPage(subKey) {
+    const data = fullSyllabus[subKey];
+    if (!data) return; 
+
+    // Set Header Info
+    const titleEl = document.getElementById("subject-title");
+    if(titleEl) titleEl.innerText = data.title;
+    
+    const dateEl = document.getElementById("exam-date");
+    if(dateEl) dateEl.innerText = `Exam Date: ${data.examDate} | Target: ${data.target}`;
+
+    // Fetch Progress
+    const docRef = doc(db, "trackers", USER_ID);
+    const snap = await getDoc(docRef);
+    const progressMap = snap.exists() ? snap.data() : {};
+
+    // Render Topics grouped by Unit
+    const container = document.getElementById("topics-container");
+    if(container) {
+        container.innerHTML = ""; // Clear loading text
         
-        // Add click listener to checkbox
-        const checkbox = item.querySelector('input');
-        checkbox.addEventListener('change', (e) => toggleTask(task.id, e.target.checked));
-        
-        container.appendChild(item);
+        // Group topics by Unit
+        const grouped = {};
+        data.topics.forEach(t => {
+            if(!grouped[t.unit]) grouped[t.unit] = [];
+            grouped[t.unit].push(t);
+        });
+
+        for (const [unit, topics] of Object.entries(grouped)) {
+            const groupDiv = document.createElement("div");
+            groupDiv.className = "unit-group";
+            groupDiv.innerHTML = `<div class="unit-title">${unit}</div>`;
+
+            topics.forEach(topic => {
+                const isDone = progressMap[topic.id];
+                const item = document.createElement("div");
+                item.className = "topic-item";
+                item.innerHTML = `
+                    <span class="${isDone ? 'strikethrough' : ''}">${topic.title}</span>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="${topic.id}" ${isDone ? 'checked' : ''}>
+                    </div>
+                `;
+                
+                // Add Click Listener
+                const box = item.querySelector("input");
+                box.addEventListener("change", (e) => toggleTopic(topic.id, e.target.checked));
+                
+                groupDiv.appendChild(item);
+            });
+            container.appendChild(groupDiv);
+        }
+    }
+
+    updateBattery(data.topics, progressMap);
+}
+
+// --- USER ACTIONS ---
+async function toggleTopic(topicId, isChecked) {
+    const docRef = doc(db, "trackers", USER_ID);
+    
+    // Update Firebase
+    await updateDoc(docRef, {
+        [topicId]: isChecked
     });
+    
+    // UI Update (Optimistic - instant feedback)
+    const checkbox = document.getElementById(topicId);
+    if(checkbox) {
+        const label = checkbox.parentElement.previousElementSibling;
+        if(isChecked) label.classList.add("strikethrough");
+        else label.classList.remove("strikethrough");
+    }
+
+    // Recalculate Battery
+    const snap = await getDoc(docRef);
+    const progressMap = snap.data();
+    const subData = fullSyllabus[currentSubject];
+    updateBattery(subData.topics, progressMap);
 }
 
-async function toggleTask(id, isDone) {
-    const docRef = doc(db, TASKS_COLLECTION, id);
-    await updateDoc(docRef, { done: isDone });
-    
-    // Optimistic UI update (optional, but recalculate progress)
-    const snapshot = await getDocs(collection(db, TASKS_COLLECTION));
-    const tasks = [];
-    snapshot.forEach(doc => tasks.push(doc.data()));
-    updateProgress(tasks);
-    
-    // Re-render to update strikethrough styling
-    // (In a real React app this would be automatic, here we cheat)
-    const item = document.querySelector(`input[data-id="${id}"]`).closest('.task-item');
-    if(isDone) item.classList.add('completed');
-    else item.classList.remove('completed');
-}
-
-function updateProgress(tasks) {
-    const total = tasks.length;
-    const done = tasks.filter(t => t.done).length;
+function updateBattery(topics, progressMap) {
+    const total = topics.length;
+    const done = topics.filter(t => progressMap[t.id]).length;
     const percent = Math.round((done / total) * 100);
-    
-    document.getElementById('progress-text').textContent = `${percent}%`;
-    document.getElementById('progress-fill').style.width = `${percent}%`;
+
+    const fill = document.getElementById("battery-fill");
+    const text = document.getElementById("battery-text");
+
+    if(fill && text) {
+        fill.style.width = `${percent}%`;
+        text.innerText = `${percent}% Charged`;
+
+        // Battery Colors
+        if(percent < 30) fill.style.background = "#ef4444"; // Red
+        else if(percent < 70) fill.style.background = "#eab308"; // Yellow
+        else fill.style.background = "#22c55e"; // Green
+    }
 }
 
-function getSubjectColor(subject) {
-    const colors = {
-        'ML': '#4CAF50',
-        'SE': '#2196F3',
-        'CN': '#f44336',
-        'CC': '#FF9800',
-        'CV': '#9C27B0'
-    };
-    return colors[subject] || '#666';
-}
-
-initApp();
+// Start the app
+init();
