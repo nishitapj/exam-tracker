@@ -66,22 +66,77 @@ async function syncSchema() {
 
 // --- DASHBOARD RENDERER (index.html) ---
 async function renderDashboard() {
+    console.log("Rendering Dashboard...");
     const docRef = doc(db, "trackers", USER_ID);
     const snap = await getDoc(docRef);
     const progressMap = snap.exists() ? snap.data() : {};
 
-    // 1. Update Mini Progress Bars
-    for (const [subKey, subData] of Object.entries(fullSyllabus)) {
-        const total = subData.topics.length;
-        const done = subData.topics.filter(t => progressMap[t.id]).length;
-        const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to midnight for accurate day calc
+
+    // --- 1. DYNAMIC SUBJECT GRID (Calculates Time for ALL 5) ---
+    const grid = document.querySelector('.subject-grid');
+    if (grid) {
+        grid.innerHTML = ""; // Clear any static HTML to prevent duplicates
         
-        const bar = document.getElementById(`prog-${subKey}`);
-        // We use optional chaining (?.) in case the element isn't found
-        if(bar) bar.style.width = `${percent}%`;
+        let nearestObj = { name: "", days: 999 };
+
+        for (const [subKey, subData] of Object.entries(fullSyllabus)) {
+            // A. Calculate Days Left
+            const examDate = new Date(subData.examDate);
+            const diffTime = examDate - today;
+            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // B. Calculate Progress
+            const total = subData.topics.length;
+            const done = subData.topics.filter(t => progressMap[t.id]).length;
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+            // C. Track Nearest Exam for the Main Banner
+            if (daysLeft >= 0 && daysLeft < nearestObj.days) {
+                nearestObj = { name: subKey, days: daysLeft, title: subData.title };
+            }
+
+            // D. Create Card HTML
+            const card = document.createElement("a");
+            card.href = `subject.html?sub=${subKey}`;
+            card.className = "subject-card";
+            
+            // Color code urgency
+            let timeColor = "#94a3b8"; // Gray (Standard)
+            if (daysLeft <= 3) timeColor = "#ef4444"; // Red (Panic)
+            else if (daysLeft <= 7) timeColor = "#eab308"; // Yellow (Warning)
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <span class="subject-code">${subKey}</span>
+                    <span style="font-size:0.8rem; background:#334155; padding:2px 6px; border-radius:4px;">${subData.target}</span>
+                </div>
+                
+                <div style="margin: 15px 0; font-size: 0.9rem; color:${timeColor}; font-weight:bold;">
+                    ⏳ ${daysLeft > 0 ? daysLeft + " Days Left" : "EXAM TODAY!"}
+                </div>
+
+                <div class="mini-progress">
+                    <div class="mini-fill" style="width:${percent}%; background-color: ${percent === 100 ? '#22c55e' : ''}"></div>
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+
+        // --- 2. MAIN COUNTDOWN BANNER ---
+        const countdownEl = document.getElementById("countdown");
+        if (countdownEl) {
+            if (nearestObj.days === 0) {
+                countdownEl.innerText = `🚨 EXAM DAY: ${nearestObj.title} IS TODAY! 🚨`;
+                countdownEl.style.background = "#ef4444"; // Red background
+            } else {
+                countdownEl.innerText = `🔥 Next Battle: ${nearestObj.name} in ${nearestObj.days} Days`;
+            }
+        }
     }
 
-    // 2. Render Today's Tasks
+    // --- 3. TODAY'S TASKS (Unchanged logic) ---
     const todayStr = new Date().toISOString().split('T')[0]; 
     const container = document.getElementById("today-tasks");
     if(container) {
@@ -108,18 +163,8 @@ async function renderDashboard() {
         }
 
         if (!hasTasks) {
-            container.innerHTML = `<div class="daily-task" style="border-left-color:var(--success)">🎉 All caught up for today!</div>`;
+            container.innerHTML = `<div class="daily-task" style="border-left-color:var(--success)">🎉 No pending tasks for today!</div>`;
         }
-    }
-
-    // 3. Countdown to First Exam (ML)
-    const countdownEl = document.getElementById("countdown");
-    if(countdownEl) {
-        const mlDate = new Date("2026-01-28");
-        const today = new Date();
-        const diffTime = mlDate - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        countdownEl.innerText = `${diffDays} Days to ML Exam`;
     }
 }
 

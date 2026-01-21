@@ -1,7 +1,7 @@
 export const fullSyllabus = {
     "ML": {
         title: "Machine Learning",
-        target: "34/60",
+        target: "56/60 (S Grade)", 
         examDate: "2026-01-28",
         topics: [
             { id: "ml_1", unit: "Unit 2", title: "Neural Networks & Backprop", date: "2026-01-21" },
@@ -14,7 +14,7 @@ export const fullSyllabus = {
     },
     "SE": {
         title: "Software Engineering",
-        target: "78/100",
+        target: "98/100 (S Grade)",
         examDate: "2026-01-30",
         topics: [
             { id: "se_1", unit: "Unit 3", title: "DevOps & Jenkins Arch", date: "2026-01-29" },
@@ -25,7 +25,7 @@ export const fullSyllabus = {
     },
     "CN": {
         title: "Computer Networks 2",
-        target: "88/100",
+        target: "96/100 (Max Possible)",
         examDate: "2026-02-02",
         topics: [
             { id: "cn_1", unit: "Unit 1", title: "Queuing Theory (M/M/1)", date: "2026-01-22" },
@@ -36,7 +36,7 @@ export const fullSyllabus = {
     },
     "CC": {
         title: "Cloud Computing",
-        target: "48/60",
+        target: "60/60 (Max Possible)",
         examDate: "2026-02-05",
         topics: [
             { id: "cc_1", unit: "Unit 1", title: "Kubernetes Architecture", date: "2026-02-03" },
@@ -46,7 +46,7 @@ export const fullSyllabus = {
     },
     "CV": {
         title: "Computer Vision",
-        target: "74/100",
+        target: "94/100 (S Grade)",
         examDate: "2026-02-06",
         topics: [
             { id: "cv_1", unit: "Unit 1", title: "Filters & Edge Detection", date: "2026-02-05" },
