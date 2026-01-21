@@ -27,23 +27,36 @@ const currentSubject = urlParams.get("sub");
 async function init() {
     console.log("App Initializing...");
     
-    // 1. Sync Static Data (First run only)
     try {
+        // 1. Sync Static Data (First run only)
         await syncSchema();
-    } catch (error) {
-        console.error("Database Error:", error);
-    }
 
-    // 2. Route Handling
-    if (path.endsWith("revision.html")) {
-        renderRevision();
-    } 
-    else if (currentSubject) {
-        renderSubjectPage(currentSubject);
-    } 
-    else {
-        // Default to dashboard
-        renderDashboard();
+        // 2. Route Handling
+        if (path.endsWith("revision.html")) {
+            renderRevision();
+        } 
+        else if (currentSubject) {
+            renderSubjectPage(currentSubject);
+        } 
+        else {
+            // Default to dashboard
+            renderDashboard();
+        }
+    } catch (error) {
+        console.error("CRITICAL ERROR:", error);
+        // Visual Error Reporting
+        const errorMsg = `Error: ${error.message}`;
+        if(document.getElementById("countdown")) {
+            document.getElementById("countdown").innerText = "DATABASE ERROR (See Console)";
+            document.getElementById("countdown").style.background = "#000";
+        }
+        if(document.getElementById("today-tasks")) {
+            document.getElementById("today-tasks").innerHTML = `
+                <div class="daily-task" style="border-left-color:red; background: #450a0a;">
+                    <strong>${errorMsg}</strong><br>
+                    Did you update Firestore Rules to 'allow read, write: if true'?
+                </div>`;
+        }
     }
 }
 
@@ -85,7 +98,7 @@ async function renderDashboard() {
         link.style.marginTop = "20px";
         link.style.background = "#1e293b";
         link.style.borderLeft = "4px solid #eab308";
-        link.innerHTML = "<strong>⚡ Last Minute Revision / Cheat Sheets</strong><span style='font-size:1.2rem'>&rarr;</span>";
+        link.innerHTML = "<strong>⚡ Last Minute Revision / Cheat Sheets</strong><span style='font-size:1.2rem; float:right'>&rarr;</span>";
         header.appendChild(link);
     }
 
