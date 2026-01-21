@@ -3,26 +3,403 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exam HQ</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Exam Workflow 2026</title>
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f1f5f9;
+            --subtext: #94a3b8; --accent: #38bdf8;
+            --success: #22c55e; --danger: #ef4444; --warning: #eab308;
+            --border: #334155;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding: 20px; line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        a { text-decoration: none; color: inherit; cursor: pointer; }
+        
+        /* Dashboard */
+        .dashboard-header { text-align: center; margin-bottom: 40px; }
+        .countdown-box { 
+            background: linear-gradient(45deg, #ef4444, #b91c1c); 
+            padding: 15px; border-radius: 12px; display: inline-block;
+            margin-top: 10px; font-weight: bold; font-size: 1.2rem;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+        .section-title { 
+            border-bottom: 2px solid var(--border); padding-bottom: 10px; 
+            margin-top: 40px; color: var(--accent); font-size: 1.1rem; 
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        /* Grid */
+        .subject-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px; margin-top: 20px;
+        }
+        .subject-card {
+            background: var(--card); padding: 20px; border-radius: 12px;
+            border: 1px solid var(--border); display: flex; flex-direction: column;
+            justify-content: space-between; transition: transform 0.2s;
+        }
+        .subject-card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        .subject-code { font-size: 1.5rem; font-weight: 800; display: block; }
+        
+        /* Progress & Badges */
+        .mini-progress { height: 6px; background: #334155; margin-top: 15px; border-radius: 3px; overflow: hidden; }
+        .mini-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.5s ease; }
+        .countdown-badge { 
+            display: block; text-align: center; font-weight: 800; 
+            padding: 6px; border-radius: 6px; margin-top: 10px; font-size: 0.85rem;
+        }
+        .exam-meta { font-size: 0.8rem; color: #cbd5e1; margin-top: 5px; opacity: 0.8; }
+
+        /* Pages & Components */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .back-btn { background: #334155; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; }
+        
+        /* Checklist Items */
+        .unit-group { margin-bottom: 25px; }
+        .unit-title { font-size: 0.85rem; color: var(--subtext); text-transform: uppercase; font-weight: bold; margin-bottom: 8px; }
+        .topic-item {
+            background: var(--card); padding: 15px; border-radius: 8px;
+            margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .strikethrough { text-decoration: line-through; opacity: 0.5; }
+        input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--success); cursor: pointer; }
+
+        /* Revision Cards */
+        .rev-card { background: var(--card); border-left: 4px solid var(--warning); margin-bottom: 10px; border-radius: 8px; }
+        .rev-header { padding: 15px; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; }
+        .rev-content { max-height: 0; overflow: hidden; transition: max-height 0.3s; background: #151e2e; }
+        .rev-content.open { max-height: 1000px; }
+        .rev-item { padding: 10px 15px; border-bottom: 1px solid #334155; font-family: monospace; font-size: 0.9rem; }
+
+        /* Debug Status */
+        #status-log {
+            position: fixed; bottom: 10px; right: 10px; 
+            font-size: 0.7rem; opacity: 0.5; font-family: monospace;
+        }
+    </style>
 </head>
 <body>
+
     <div class="container">
-        <div class="dashboard-header">
-            <h1>🚀 Mission Control</h1>
-            <div id="countdown" class="countdown-box">Loading...</div>
-        </div>
+        <div id="status-log">Initializing...</div>
 
-        <h3 class="section-title">⚡ Today's Targets</h3>
-        <div id="today-tasks">
-            <div class="daily-task">Checking database...</div>
-        </div>
-
-        <h3 class="section-title">📚 Subject Modules</h3>
-        <div class="subject-grid">
+        <div id="dashboard-page" class="page active">
+            <div class="dashboard-header">
+                <h1>🤞 Domain Expansion: V Sem</h1>
+                <div id="main-countdown" class="countdown-box">Calculating...</div>
             </div>
+
+            <div onclick="showPage('revision-page')" style="background: #1e293b; padding: 15px; border-radius: 8px; border-left: 4px solid #eab308; cursor: pointer; margin-bottom: 30px;">
+                <strong>⚡ Last Minute Revision / Cheat Sheets</strong> 
+                <span style="float: right;">&rarr;</span>
+            </div>
+
+            <h3 class="section-title">⚡ Today's Targets</h3>
+            <div id="today-tasks">Loading...</div>
+
+            <h3 class="section-title">📚 Subject Modules</h3>
+            <div class="subject-grid" id="subject-grid"></div>
+        </div>
+
+        <div id="subject-page" class="page">
+            <div class="top-bar">
+                <a onclick="showPage('dashboard-page')" class="back-btn">← Back</a>
+                <h2 id="sub-page-title" style="margin:0">Subject</h2>
+            </div>
+            <p id="sub-page-meta" style="color:var(--accent); margin-bottom: 20px;"></p>
+            <div id="topics-list"></div>
+        </div>
+
+        <div id="revision-page" class="page">
+            <div class="top-bar">
+                <a onclick="showPage('dashboard-page')" class="back-btn">← Back</a>
+                <h2 style="margin:0; color:var(--warning)">⚡ Cheat Sheets</h2>
+            </div>
+            <div id="revision-list"></div>
+        </div>
     </div>
-    
-    <script type="module" src="script.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // --- 1. CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYyXAEMh2dTI_JvNzxqlLUMVBbWnIO7ho",
+            authDomain: "exam-tracker-23c1c.firebaseapp.com",
+            projectId: "exam-tracker-23c1c",
+            storageBucket: "exam-tracker-23c1c.firebasestorage.app",
+            messagingSenderId: "285050323574",
+            appId: "1:285050323574:web:76ede5dd9e824f30a0d557",
+            measurementId: "G-NGL34V940J"
+        };
+
+        // --- 2. DATA (Embedded directly to prevent loading errors) ---
+        const fullSyllabus = {
+            "ML": {
+                title: "Machine Learning", target: "58/60 (S Grade)", 
+                examDate: "2026-01-28", examTime: "9:30 AM - 11:30 AM",
+                topics: [
+                    { id: "ml_1", unit: "Unit 2", title: "Neural Networks & Backprop", date: "2026-01-21" },
+                    { id: "ml_2", unit: "Unit 2", title: "CNN Architectures (AlexNet)", date: "2026-01-21" },
+                    { id: "ml_3", unit: "Unit 1", title: "Regression Math (L1/L2)", date: "2026-01-21" },
+                    { id: "ml_4", unit: "Unit 3", title: "Ensemble Learning", date: "2026-01-22" },
+                    { id: "ml_5", unit: "Unit 1", title: "SVM & Kernels", date: "2026-01-23" },
+                    { id: "ml_6", unit: "Unit 2", title: "RNN vs LSTM", date: "2026-01-24" }
+                ],
+                revision: ["Derivation: Backprop (Chain Rule)", "Formula: MSE & Gradient Descent", "Formula: Lasso (L1) vs Ridge (L2)", "Diagram: AlexNet Architecture", "Concept: Vanishing Gradient"]
+            },
+            "SE": {
+                title: "Software Engineering", target: "100/100 (S Grade)", 
+                examDate: "2026-01-30", examTime: "9:30 AM - 12:30 PM",
+                topics: [
+                    { id: "se_1", unit: "Unit 3", title: "DevOps & Jenkins Arch", date: "2026-01-29" },
+                    { id: "se_2", unit: "Unit 1", title: "Agile Manifesto & Scrum", date: "2026-01-29" },
+                    { id: "se_3", unit: "Unit 2", title: "System Modeling", date: "2026-01-29" },
+                    { id: "se_4", unit: "Unit 2", title: "Testing & TDD", date: "2026-01-29" }
+                ],
+                revision: ["Diagram: Jenkins Master-Slave", "List: 4 Agile Values & 12 Principles", "Diagram: Use Case & Sequence", "Concept: INVEST Model", "Concept: TDD Cycle"]
+            },
+            "CN": {
+                title: "Computer Networks 2", target: "90/100 (A Grade)", 
+                examDate: "2026-02-02", examTime: "9:30 AM - 12:30 PM",
+                topics: [
+                    { id: "cn_1", unit: "Unit 1", title: "Queuing Theory (M/M/1)", date: "2026-01-22" },
+                    { id: "cn_2", unit: "Unit 2", title: "Error Detection (CRC)", date: "2026-01-23" },
+                    { id: "cn_3", unit: "Unit 3", title: "Wireless (Mobile IP)", date: "2026-01-31" },
+                    { id: "cn_4", unit: "Unit 1", title: "Routing (OSPF/BGP)", date: "2026-02-01" }
+                ],
+                revision: ["Formula: Little's Law (L = λW)", "Math: CRC Division", "Diagram: OSPF Header", "Flowchart: CSMA/CD", "Concept: Mobile IP"]
+            },
+            "CC": {
+                title: "Cloud Computing", target: "59/60 (A Grade)", 
+                examDate: "2026-02-05", examTime: "9:30 AM - 11:30 AM",
+                topics: [
+                    { id: "cc_1", unit: "Unit 1", title: "K8s Architecture", date: "2026-02-03" },
+                    { id: "cc_2", unit: "Unit 2", title: "Microservices", date: "2026-02-04" },
+                    { id: "cc_3", unit: "Unit 1", title: "Docker & Virt", date: "2026-02-03" }
+                ],
+                revision: ["Diagram: K8s Cluster", "Code: Dockerfile (FROM, RUN)", "Diagram: Leaf-Spine", "Concept: Microservices vs Monolith", "Tool: Ansible Playbooks"]
+            },
+            "CV": {
+                title: "Computer Vision", target: "96/100 (S Grade)", 
+                examDate: "2026-02-06", examTime: "9:30 AM - 12:30 PM",
+                topics: [
+                    { id: "cv_1", unit: "Unit 1", title: "Filters & Edge", date: "2026-02-05" },
+                    { id: "cv_2", unit: "Unit 1", title: "SIFT & Features", date: "2026-02-05" },
+                    { id: "cv_3", unit: "Unit 2", title: "Optical Flow", date: "2026-02-05" }
+                ],
+                revision: ["Equation: 2D Gaussian Kernel", "Steps: Canny Edge Detection", "Equation: Optical Flow", "Concept: SIFT Keypoints", "Math: RANSAC Logic"]
+            }
+        };
+
+        // --- 3. APP STATE & UTILS ---
+        let db = null;
+        let progressMap = {};
+        const USER_ID = "my_exam_tracker";
+
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('status-log').innerText = msg;
+        }
+
+        // --- 4. INIT LOGIC (WITH FAILSAFE) ---
+        async function initApp() {
+            log("Connecting to Firebase...");
+            
+            // Failsafe: If Firebase hangs for 3 seconds, load Local Mode
+            const timeout = setTimeout(() => {
+                log("Firebase timeout. Switching to Offline Mode.");
+                renderAll();
+            }, 3000);
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                
+                // Try to fetch data
+                const docRef = doc(db, "trackers", USER_ID);
+                const snap = await getDoc(docRef);
+
+                clearTimeout(timeout); // Cancel the failsafe
+
+                if (snap.exists()) {
+                    progressMap = snap.data();
+                    log("Data loaded from Cloud.");
+                } else {
+                    log("Creating fresh database...");
+                    let schema = {};
+                    Object.values(fullSyllabus).forEach(sub => sub.topics.forEach(t => schema[t.id] = false));
+                    await setDoc(docRef, schema);
+                    progressMap = schema;
+                }
+            } catch (e) {
+                console.error(e);
+                log("Offline Mode (Database Error)");
+            }
+
+            renderAll();
+        }
+
+        // --- 5. RENDER LOGIC ---
+        function renderAll() {
+            renderDashboard();
+            renderRevision();
+        }
+
+        function renderDashboard() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const grid = document.getElementById('subject-grid');
+            const todayBox = document.getElementById('today-tasks');
+            grid.innerHTML = "";
+            todayBox.innerHTML = "";
+
+            let nearestObj = { name: "", days: 999, title: "" };
+            let hasTasks = false;
+
+            for (const [key, data] of Object.entries(fullSyllabus)) {
+                // Days Left
+                const examDate = new Date(data.examDate);
+                const diff = Math.ceil((examDate - new Date()) / (1000 * 60 * 60 * 24));
+                
+                // Progress
+                const total = data.topics.length;
+                const done = data.topics.filter(t => progressMap[t.id]).length;
+                const percent = total ? Math.round((done/total)*100) : 0;
+
+                // Nearest Exam
+                if (diff >= 0 && diff < nearestObj.days) nearestObj = { name: key, days: diff, title: data.title };
+
+                // Card HTML
+                let badgeColor = "#334155";
+                let badgeText = `${diff} Days Left`;
+                if(diff === 0) { badgeColor = "#ef4444"; badgeText = "TODAY!"; }
+                else if(diff === 1) { badgeColor = "#eab308"; badgeText = "TOMORROW!"; }
+
+                const card = document.createElement('div');
+                card.className = "subject-card";
+                card.onclick = () => openSubject(key);
+                card.innerHTML = `
+                    <div>
+                        <div style="display:flex; justify-content:space-between">
+                            <span class="subject-code">${key}</span>
+                            <span style="font-size:0.8rem; opacity:0.8">${data.target}</span>
+                        </div>
+                        <div class="exam-meta">📅 ${data.examDate}<br>⏰ ${data.examTime}</div>
+                    </div>
+                    <div>
+                        <div class="countdown-badge" style="background:${badgeColor}">${badgeText}</div>
+                        <div class="mini-progress"><div class="mini-fill" style="width:${percent}%"></div></div>
+                    </div>
+                `;
+                grid.appendChild(card);
+
+                // Today's Tasks
+                data.topics.forEach(t => {
+                    if (t.date <= todayStr && !progressMap[t.id]) {
+                        hasTasks = true;
+                        todayBox.innerHTML += `
+                            <div class="topic-item" style="border-left:4px solid var(--accent)">
+                                <div><strong>[${key}]</strong> ${t.title}<br><small>${t.unit}</small></div>
+                                <a onclick="openSubject('${key}')" style="color:var(--accent)">GO &rarr;</a>
+                            </div>`;
+                    }
+                });
+            }
+
+            if(!hasTasks) todayBox.innerHTML = `<div class="topic-item" style="border-left:4px solid var(--success)">🎉 All Caught Up!</div>`;
+            
+            const countEl = document.getElementById('main-countdown');
+            if(nearestObj.days === 0) {
+                countEl.innerHTML = `🚨 EXAM DAY: ${nearestObj.title} 🚨`;
+                countEl.style.background = "#ef4444";
+            } else {
+                countEl.innerHTML = `🔥 Next: ${nearestObj.name} in ${nearestObj.days} Days`;
+            }
+        }
+
+        function renderRevision() {
+            const list = document.getElementById('revision-list');
+            list.innerHTML = "";
+            for (const [key, data] of Object.entries(fullSyllabus)) {
+                let html = `<div class="rev-card">
+                    <div class="rev-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                        ${key} Cheat Sheet <span>▼</span>
+                    </div>
+                    <div class="rev-content">`;
+                data.revision.forEach(r => html += `<div class="rev-item">• ${r}</div>`);
+                html += `</div></div>`;
+                list.innerHTML += html;
+            }
+        }
+
+        // --- 6. USER ACTIONS ---
+        window.showPage = (id) => {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        };
+
+        window.openSubject = (key) => {
+            const data = fullSyllabus[key];
+            document.getElementById('sub-page-title').innerText = data.title;
+            document.getElementById('sub-page-meta').innerText = `Target: ${data.target} | ${data.examDate}`;
+            
+            const list = document.getElementById('topics-list');
+            list.innerHTML = "";
+            
+            // Group by Unit
+            const grouped = {};
+            data.topics.forEach(t => {
+                if(!grouped[t.unit]) grouped[t.unit] = [];
+                grouped[t.unit].push(t);
+            });
+
+            for(const [unit, topics] of Object.entries(grouped)) {
+                let html = `<div class="unit-group"><div class="unit-title">${unit}</div>`;
+                topics.forEach(t => {
+                    const isDone = progressMap[t.id];
+                    html += `
+                        <div class="topic-item">
+                            <span class="${isDone ? 'strikethrough' : ''}">${t.title}</span>
+                            <input type="checkbox" onchange="toggleTopic('${t.id}', this.checked, '${key}')" ${isDone ? 'checked' : ''}>
+                        </div>`;
+                });
+                html += `</div>`;
+                list.innerHTML += html;
+            }
+            showPage('subject-page');
+        };
+
+        window.toggleTopic = async (id, checked, subKey) => {
+            // Optimistic UI
+            progressMap[id] = checked;
+            // Re-render immediately to show strikethrough/progress update
+            const checkbox = document.querySelector(`input[onchange*="'${id}'"]`);
+            if(checkbox) {
+                const text = checkbox.previousElementSibling;
+                if(checked) text.classList.add('strikethrough'); else text.classList.remove('strikethrough');
+            }
+
+            // Sync to DB
+            if(db) {
+                try {
+                    await updateDoc(doc(db, "trackers", USER_ID), { [id]: checked });
+                } catch(e) { console.error("Save failed", e); }
+            }
+        };
+
+        // Start
+        initApp();
+    </script>
 </body>
 </html>
